@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Colors.Net;
 using Colors.Net.StringColorExtensions;
 using Microsoft.WindowsAzure.Storage;
@@ -36,6 +37,9 @@ namespace Build
             {
                 throw new Exception($"Environment variable 'integrationBuildNumber' cannot be null or empty for an integration build.");
             }
+
+            // Update the package versions in the CoreTools project file to match the Host.
+            UpdateCoreToolsCsProjFilePackages();
 
             const string AzureFunctionsPreReleaseFeedName = "https://azfunc.pkgs.visualstudio.com/e6a70c92-4128-439f-8012-382fe78d6396/_packaging/AzureFunctionsPreRelease/nuget/v3/index.json";
             var packagesToUpdate = GetV3PackageList();
@@ -774,6 +778,63 @@ namespace Build
             }
 
             return new PackageInfo(Name: parts[0], Version: parts[1]);
+        }
+
+        private static void UpdateCoreToolsCsProjFilePackages()
+        {
+            var hostCsProjFilePath = "https://raw.githubusercontent.com/Azure/azure-functions-host/dev/src/WebJobs.Script.WebHost/WebJobs.Script.WebHost.csproj";
+            var coreToolsCsProjFilePath = Path.Combine(Settings.SrcProjectPath, "Microsoft.Azure.Functions.Cli", "Microsoft.Azure.Functions.Cli.csproj");
+
+            XDocument hostDoc = XDocument.Parse(File.ReadAllText(hostCsProjFilePath));
+            XDocument coreToolsDoc = XDocument.Parse(File.ReadAllText(coreToolsCsProjFilePath));
+            XNamespace msbuild = "http://schemas.microsoft.com/developer/msbuild/2003";
+
+            var hostPackages = hostDoc.Descendants(msbuild + "PackageReference").
+                Select (x => new {
+                    Name = x.Attribute("Include").Value,
+                    Version = x.Attribute("Version").Value })
+                .ToList();
+
+            var coreToolsPackages = coreToolsDoc.Descendants(msbuild + "PackageReference").
+                Select(x => new {
+                    Name = x.Attribute("Include").Value,
+                    Version = x.Attribute("Version").Value
+                })
+                .ToList();
+
+            ColoredConsole.WriteLine($"Updating {coreToolsCsProjFilePath}");
+
+            var projectUpdated = false;
+
+            foreach (var hostPackage in hostPackages)
+            {
+                var coreToolsPackage = coreToolsPackages.FirstOrDefault(p => p.Name == hostPackage.Name);
+
+                if (coreToolsPackage != null && coreToolsPackage.Version != hostPackage.Version)
+                {
+                    var message = $"Updating {hostPackage.Name} in Microsoft.Azure.Functions.Cli.csproj from {coreToolsPackage.Version} to {hostPackage.Version}";
+                    ColoredConsole.WriteLine(message);
+
+                    var node = coreToolsDoc.Descendants(msbuild + "PackageReference").
+                        FirstOrDefault(x => x.Attribute("Include").Value == hostPackage.Name);
+
+                    if (node != null)
+                    {
+                        node.Attribute("Version").Value = hostPackage.Version;
+                        projectUpdated = true;
+                    }
+                }
+            }
+
+            if (projectUpdated)
+            {
+                ColoredConsole.WriteLine($"Saving file {coreToolsCsProjFilePath}...");
+                coreToolsDoc.Save(coreToolsCsProjFilePath);
+
+                ColoredConsole.WriteLine($"Project file content:");
+                var fileContent = File.ReadAllText(coreToolsCsProjFilePath);
+                ColoredConsole.WriteLine(fileContent);
+            }
         }
     }
 }
