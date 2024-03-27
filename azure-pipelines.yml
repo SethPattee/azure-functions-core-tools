@@ -88,7 +88,7 @@ jobs:
       .\validateWorkerVersions.ps1
     displayName: 'Validate worker versions'
     condition: ne(variables['skipWorkerVersionValidation'], 'true')
-    - pwsh: |
+  - pwsh: |
       npm install -g azurite
       mkdir azurite
       azurite --silent --location azurite
