@@ -60,6 +60,9 @@ jobs:
     inputs:
       versionSpec: '18.x'
   - pwsh: |
+      docker run -d -p 10000:10000 -p 10001:10001 -p 10002:10002 mcr.microsoft.com/azure-storage/azurite
+    displayName: 'Install and Run Azurite'
+  - pwsh: |
       Import-Module ".\pipelineUtilities.psm1" -Force
       Install-Dotnet
     displayName: 'Install .NET 6.0 and 3.1'
@@ -88,11 +91,6 @@ jobs:
       .\validateWorkerVersions.ps1
     displayName: 'Validate worker versions'
     condition: ne(variables['skipWorkerVersionValidation'], 'true')
-  - pwsh: |
-      npm install -g azurite
-      mkdir azurite
-      azurite --silent --location azurite
-    displayName: 'Install Azurite'
   - pwsh: |
       .\build.ps1
     env:
