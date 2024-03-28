@@ -574,7 +574,7 @@ namespace Azure.Functions.Cli.Tests.E2E
 
         [Theory]
         [InlineData("dotnet")]
-        //[InlineData("dotnet-isolated")]
+        [InlineData("dotnet-isolated")]
         public async Task start_with_user_secrets(string language)
         {
             await CliTester.Run(new RunConfiguration[]
