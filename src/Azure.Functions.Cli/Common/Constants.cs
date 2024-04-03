@@ -91,6 +91,7 @@ namespace Azure.Functions.Cli.Common
         public const string LocalSettingsJsonFileName = "local.settings.json";
         public const string EnableWorkerIndexEnvironmentVariableName = "FunctionsHostingConfig__WORKER_INDEXING_ENABLED";
         public const string Dotnet = "dotnet";
+        public const string AzureWebJobsSecretStorageType = "AzureWebJobsSecretStorageType";
 
 
 
